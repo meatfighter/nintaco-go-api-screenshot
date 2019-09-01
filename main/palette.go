@@ -1,0 +1,184 @@
+package main
+
+import (
+	"image/color"
+	"math"
+)
+
+// "Smooth (FBX)" palette RGB triplets
+// http://www.firebrandx.com/nespalette.html
+var palette = [][]uint8{
+	{0x6A, 0x6D, 0x6A},
+	{0x00, 0x13, 0x80},
+	{0x1E, 0x00, 0x8A},
+	{0x39, 0x00, 0x7A},
+	{0x55, 0x00, 0x56},
+	{0x5A, 0x00, 0x18},
+	{0x4F, 0x10, 0x00},
+	{0x3D, 0x1C, 0x00},
+	{0x25, 0x32, 0x00},
+	{0x00, 0x3D, 0x00},
+	{0x00, 0x40, 0x00},
+	{0x00, 0x39, 0x24},
+	{0x00, 0x2E, 0x55},
+	{0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00},
+	{0xB9, 0xBC, 0xB9},
+	{0x18, 0x50, 0xC7},
+	{0x4B, 0x30, 0xE3},
+	{0x73, 0x22, 0xD6},
+	{0x95, 0x1F, 0xA9},
+	{0x9D, 0x28, 0x5C},
+	{0x98, 0x37, 0x00},
+	{0x7F, 0x4C, 0x00},
+	{0x5E, 0x64, 0x00},
+	{0x22, 0x77, 0x00},
+	{0x02, 0x7E, 0x02},
+	{0x00, 0x76, 0x45},
+	{0x00, 0x6E, 0x8A},
+	{0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00},
+	{0xFF, 0xFF, 0xFF},
+	{0x68, 0xA6, 0xFF},
+	{0x8C, 0x9C, 0xFF},
+	{0xB5, 0x86, 0xFF},
+	{0xD9, 0x75, 0xFD},
+	{0xE3, 0x77, 0xB9},
+	{0xE5, 0x8D, 0x68},
+	{0xD4, 0x9D, 0x29},
+	{0xB3, 0xAF, 0x0C},
+	{0x7B, 0xC2, 0x11},
+	{0x55, 0xCA, 0x47},
+	{0x46, 0xCB, 0x81},
+	{0x47, 0xC1, 0xC5},
+	{0x4A, 0x4D, 0x4A},
+	{0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00},
+	{0xFF, 0xFF, 0xFF},
+	{0xCC, 0xEA, 0xFF},
+	{0xDD, 0xDE, 0xFF},
+	{0xEC, 0xDA, 0xFF},
+	{0xF8, 0xD7, 0xFE},
+	{0xFC, 0xD6, 0xF5},
+	{0xFD, 0xDB, 0xCF},
+	{0xF9, 0xE7, 0xB5},
+	{0xF1, 0xF0, 0xAA},
+	{0xDA, 0xFA, 0xA9},
+	{0xC9, 0xFF, 0xBC},
+	{0xC3, 0xFB, 0xD7},
+	{0xC4, 0xF6, 0xF6},
+	{0xBE, 0xC1, 0xBE},
+	{0x00, 0x00, 0x00},
+	{0x00, 0x00, 0x00},
+}
+
+var extendedPalette = func() []*color.NRGBA {
+	extended := make([]*color.NRGBA, 512)
+	for i := len(extended) - 1; i >= 0; i-- {
+		extended[i] = &color.NRGBA{}
+	}
+	extendPalette(palette, extended, true)
+	return extended
+}()
+
+const (
+	attenuationScale  = 0.79399
+	attenuationOffset = 0.0782838
+)
+
+var tints = []int{0, 6, 10, 8, 2, 4, 0, 0}
+var loLevels = []float64{-0.12, 0.00, 0.31, 0.72}
+var hiLevels = []float64{0.40, 0.68, 1.00, 1.00}
+var phases = func() []float64 {
+	ps := make([]float64, 19)
+	for i := len(ps) - 1; i >= 0; i-- {
+		ps[i] = -math.Cos(float64(i) * math.Pi / 6.0)
+	}
+	return ps
+}()
+
+func toSinAngle(color int) float64 {
+	return phases[color]
+}
+
+func toCosAngle(color int) float64 {
+	return phases[color+3]
+}
+
+func clamp(value, min, max float64) float64 {
+	if value < min {
+		return min
+	} else if value > max {
+		return max
+	}
+	return value
+}
+
+func extendPalette(pal [][]uint8, extended []*color.NRGBA, ntsc bool) {
+
+	for i := 7; i >= 0; i-- {
+		offset := i << 6
+		var emphasis int
+		if ntsc {
+			emphasis = i
+		} else {
+			emphasis = ((i & 4) | ((i & 1) << 1) | ((i >> 1) & 1))
+		}
+		for j := 63; j >= 0; j-- {
+			color := j & 0x0F
+			RGB := pal[j]
+			R := RGB[0]
+			G := RGB[1]
+			B := RGB[2]
+			if i > 0 && color <= 0x0D {
+				r := float64(R) / 255.0
+				g := float64(G) / 255.0
+				b := float64(B) / 255.0
+
+				Y := 0.299*r + 0.587*g + 0.144*b
+				I := 0.596*r - 0.274*g - 0.322*b
+				Q := 0.211*r - 0.523*g + 0.312*b
+
+				level := (j >> 4) & 0x03
+				lo := loLevels[level]
+				hi := hiLevels[level]
+
+				if color == 0 {
+					lo = hi
+				} else if color == 0x0D {
+					hi = lo
+				}
+
+				if emphasis == 7 {
+					Y = 1.13 * (Y*attenuationScale - attenuationOffset)
+				} else {
+					tintColor := tints[emphasis]
+					saturation := (hi*(1-attenuationScale) + attenuationOffset) / 2.0
+					Y -= saturation / 2.0
+					if emphasis >= 3 && emphasis != 4 {
+						saturation *= 0.6
+						Y -= saturation
+					}
+					I += toSinAngle(tintColor) * saturation
+					Q += toCosAngle(tintColor) * saturation
+				}
+
+				r = Y + 0.956*I + 0.621*Q
+				g = Y - 0.272*I - 0.647*Q
+				b = Y - 1.106*I + 1.703*Q
+
+				R = (uint8)(255.0 * clamp(r, 0, 1))
+				G = (uint8)(255.0 * clamp(g, 0, 1))
+				B = (uint8)(255.0 * clamp(b, 0, 1))
+			}
+
+			p := extended[offset|j]
+			p.R = R
+			p.G = G
+			p.B = B
+			p.A = 0xFF
+		}
+	}
+}
