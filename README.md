@@ -10,7 +10,7 @@
 2. Open the Start Program Server window via Tools | Start Program Server...
 3. Press Start Server.
 4. From the command-line, launch this Go program.
-5. Press the Select gamepad button at any time to capture a screenshot. By default, Select is mapped to apostrophe key.
+5. Press the Select gamepad button at any time to capture a screenshot. By default, Select is mapped to the apostrophe key.
 
 ### Getting Pixels
 
