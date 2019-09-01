@@ -14,7 +14,7 @@
 
 ### Getting Pixels
 
-This example demonstrates how to use `API.GetPixels`, which captures the emulator's screen into a provided array. When `API.GetPixels` is invoked within `FrameListener.FrameRendered`, the pixels values will be from the frame that is about to be displayed. If it is inovked prior to the listener callback, some of the values could be from a prior frame.
+This example demonstrates how to use `API.GetPixels`, which captures the emulator's screen into a provided array. When `API.GetPixels` is invoked within a `FrameListener` receiver, the pixels values will be from the frame that is about to be displayed. If it is inovked prior to the listener callback, some of the values could be from a prior frame.
 
 `API.GetPixels` obtains 9-bit extended palette indices. The lower 6 bits represent one of the 64 colors and the upper 3 bits describe if and how that color is emphasized. Usually there is no emphasis (the upper 3 bits will all be 0). This example uses a table to convert the extended palette indices into RGBA's.
 
